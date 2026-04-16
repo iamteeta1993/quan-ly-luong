@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # 1. CẤU HÌNH GIAO DIỆN
-st.set_page_config(page_title="Phần mềm Lương STK 2026", layout="wide")
+st.set_page_config(page_title="Quản Lý Lương STK 2026", layout="wide")
 
 def format_money(val):
     if isinstance(val, (int, float)):
@@ -12,122 +12,82 @@ def format_money(val):
 # 2. KIỂM TRA ĐĂNG NHẬP
 if "authenticated" not in st.session_state:
     st.title("🔐 Đăng nhập Admin - CÔNG TY STK")
-    user = st.text_input("Tài khoản")
-    pw = st.text_input("Mật khẩu", type="password")
+    user = st.text_input("Tài khoản", value="admin")
+    pw = st.text_input("Mật khẩu", type="password", value="123")
     if st.button("Đăng nhập"):
         if user == "admin" and pw == "123":
             st.session_state["authenticated"] = True
             st.rerun()
-        else: st.error("Sai tài khoản hoặc mật khẩu!")
+        else: st.error("Sai thông tin!")
 else:
-    st.title("📊 Quản Lý & Tính Lương STK (Luật 2026)")
-    st.info("💡 **Mẹo nhập nhanh:** App tự nhân 1.000. Ví dụ: gõ **6654** sẽ hiểu là **6,654,000 VNĐ**")
+    st.title("📊 Quản Lý Lương & Đối Chiếu Công Chuẩn")
+    st.info("💡 **Gợi ý:** Nhập tắt x1000. Ví dụ: gõ 12666 = 12,666,000 VNĐ")
     
-    with st.form("salary_form"):
-        # --- PHẦN 1: THÔNG TIN NHÂN VIÊN ---
-        st.subheader("📌 Thông tin nhân viên")
+    with st.form("salary_form_v2"):
+        st.subheader("📌 Thông tin nhân viên & Ngày công")
         c1, c2, c3 = st.columns(3)
         with c1:
+            thang_nam = st.selectbox("Tháng đối soát", ["01/2026", "02/2026", "03/2026", "04/2026"])
             ma_nv = st.text_input("Mã số nhân viên", value="THA32")
         with c2:
             ho_ten = st.text_input("Họ & Tên", value="CAO NGỌC THẮNG")
+            so_cong_thuc_te = st.number_input("Số ngày làm việc thực tế", min_value=0, max_value=31, value=24)
         with c3:
-            ngay_lam = st.text_input("Ngày bắt đầu làm việc", value="14/03/2025")
+            # Hai mục bạn yêu cầu bổ sung
+            val_tn_24 = st.number_input("Thu nhập TỔNG 24 công (x1000)", value=12666)
+            val_tn_26 = st.number_input("Thu nhập TỔNG 26 công (x1000)", value=13721)
 
         st.divider()
 
-        # --- PHẦN 2: THU NHẬP CHUẨN (DỰA TRÊN ẢNH) ---
-        st.subheader("💰 Thu nhập & Phụ cấp (Nhập tắt x1000)")
+        st.subheader("💰 Chi tiết thu nhập & Khấu trừ (x1000)")
         col1, col2 = st.columns(2)
-        
         with col1:
-            val_l_bac = st.number_input("Lương theo bậc", value=6654) # 6,654,000
-            l_bac = val_l_bac * 1000
-            st.caption(f"👉 Thực tính: {format_money(l_bac)}")
-
-            val_pc_tn = st.number_input("Phụ cấp trách nhiệm quản lý", value=563)
-            pc_tn = val_pc_tn * 1000
-            
-            val_thuong_ns = st.number_input("Thưởng kiểm soát năng suất SP", value=3302)
-            thuong_ns = val_thuong_ns * 1000
-            
-            val_ngoai_gio_thue = st.number_input("TN ngoài giờ (Phải chịu thuế)", value=0)
-            ngoai_gio_thue = val_ngoai_gio_thue * 1000
-
+            l_bac = st.number_input("Lương theo bậc", value=6654) * 1000
+            pc_tn = st.number_input("Phụ cấp trách nhiệm", value=563) * 1000
+            thuong_ns = st.number_input("Thưởng năng suất SP", value=3302) * 1000
+            ngoai_gio_mien = st.number_input("Ngoài giờ không thuế", value=840) * 1000
         with col2:
-            val_pc_xang = st.number_input("Phụ cấp xăng xe / Đi lại", value=500)
-            pc_xang = val_pc_xang * 1000
-            
-            val_pc_com = st.number_input("Phụ cấp cơm giữa ca (Miễn thuế)", value=720)
-            pc_com = val_pc_com * 1000
-
-            val_ngoai_gio_mien = st.number_input("TN ngoài giờ (Không chịu thuế)", value=840)
-            ngoai_gio_mien = val_ngoai_gio_mien * 1000
-
-            so_nguoi_pt = st.number_input("Số người phụ thuộc (Giảm trừ gia cảnh)", min_value=0, step=1, value=0)
+            pc_com_xang = st.number_input("Phụ cấp Cơm + Xăng", value=1220) * 1000
+            phu_thuoc = st.number_input("Số người phụ thuộc", min_value=0, value=0)
+            tam_ung = st.number_input("Tạm ứng / Truy thu", value=0) * 1000
 
         submit = st.form_submit_button("TÍNH LƯƠNG THỰC NHẬN")
 
         if submit:
-            # --- LOGIC TÍNH TOÁN THEO LUẬT VIỆT NAM 2026 ---
+            # Chuyển đổi giá trị nhập tắt
+            tn_24 = val_tn_24 * 1000
+            tn_26 = val_tn_26 * 1000
             
-            # 1. Tổng lương (Chưa tính tăng ca miễn thuế)
-            tong_luong = l_bac + pc_tn + thuong_ns + pc_xang + pc_com + ngoai_gio_thue
+            # --- LOGIC ĐỐI CHIẾU THEO CÔNG CHUẨN ---
+            # Tính lương 1 ngày dựa trên thu nhập tổng đã nhập
+            luong_1_ngay_24 = tn_24 / 24
+            luong_1_ngay_26 = tn_26 / 26
             
-            # 2. Tổng thu nhập tháng
-            tong_thu_nhap = tong_luong + ngoai_gio_mien
+            # Tính thu nhập dựa trên số ngày làm thực tế (chọn mẫu 24 công phổ biến)
+            tn_thuc_te = luong_1_ngay_24 * so_cong_thuc_te 
+
+            # Bảo hiểm 10.5% (Lương bậc + PC trách nhiệm)
+            bh_105 = (l_bac + pc_tn) * 0.105
             
-            # 3. Bảo hiểm trích từ lương (10.5% tính trên Lương bậc + PC Trách nhiệm)
-            luong_dong_bh = l_bac + pc_tn
-            bh_khau_tru = luong_dong_bh * 0.105
+            # Giảm trừ gia cảnh 2026: 11tr cá nhân + 4.4tr phụ thuộc
+            tn_chiu_thue = tn_thuc_te - 730000 - ngoai_gio_mien # Miễn thuế ăn trưa & ngoài giờ
+            tn_tinh_thue = max(0, tn_chiu_thue - bh_105 - 11000000 - (phu_thuoc * 4400000))
             
-            # 4. Thu nhập chịu thuế TNCN
-            # Thu nhập chịu thuế = Tổng TN - Cơm trưa (max 730k) - Ngoài giờ miễn thuế
-            tn_chiu_thue = tong_thu_nhap - min(pc_com, 730000) - ngoai_gio_mien
-            
-            # 5. Các khoản giảm trừ
-            giam_tru_ban_than = 11000000
-            giam_tru_phu_thuoc = so_nguoi_pt * 4400000
-            
-            # 6. Thu nhập tính thuế
-            tn_tinh_thue = max(0, tn_chiu_thue - bh_khau_tru - giam_tru_ban_than - giam_tru_phu_thuoc)
-            
-            # 7. Tính thuế TNCN lũy tiến
-            def tinh_thue_tncn(tntt):
+            # Thuế TNCN lũy tiến
+            def tinh_thue(tntt):
                 if tntt <= 5000000: return tntt * 0.05
                 elif tntt <= 10000000: return tntt * 0.1 - 250000
-                elif tntt <= 18000000: return tntt * 0.15 - 750000
-                elif tntt <= 32000000: return tntt * 0.2 - 1650000
-                else: return tntt * 0.25 - 3250000
+                else: return tntt * 0.15 - 750000
+            thue_tncn = tinh_thue(tn_tinh_thue)
 
-            thue_tncn = tinh_thue_tncn(tn_tinh_thue)
-            
-            # 8. THU NHẬP THỰC NHẬN CUỐI CÙNG
-            thuc_nhan = tong_thu_nhap - bh_khau_tru - thue_tncn
+            # THU NHẬP THỰC NHẬN CUỐI CÙNG
+            thuc_nhan = tn_thuc_te - bh_105 - thue_tncn - tam_ung
 
-            # --- HIỂN THỊ KẾT QUẢ THEO CẤU TRÚC ẢNH ---
-            st.success(f"### ✅ BẢNG TÍNH LƯƠNG THỰC NHẬN: {ho_ten.upper()}")
-            
-            ket_qua = {
-                "Cấu trúc bảng lương": [
-                    "Lương theo bậc", "Phụ cấp trách nhiệm", "Thưởng năng suất", "TN ngoài giờ (Miễn thuế)",
-                    "Phụ cấp cơm / Xăng xe", "---", "TỔNG THU NHẬP THÁNG", 
-                    "Bảo hiểm xã hội (10.5%)", "Giảm trừ gia cảnh bản thân", "Thuế TNCN phải nộp", "---",
-                    "TỔNG TIỀN THỰC NHẬN CÒN LẠI"
-                ],
-                "Số tiền (VNĐ)": [
-                    format_money(l_bac), format_money(pc_tn), format_money(thuong_ns), format_money(ngoai_gio_mien),
-                    format_money(pc_com + pc_xang), "", format_money(tong_thu_nhap),
-                    format_money(-bh_khau_tru), format_money(-giam_tru_ban_than), format_money(-thue_tncn), "",
-                    f"⭐ {format_money(thuc_nhan)}"
-                ]
+            # HIỂN THỊ KẾT QUẢ ĐỐI SOÁT
+            st.success(f"### 📑 PHIẾU LƯƠNG ĐỐI SOÁT {thang_nam}")
+            res = {
+                "Hạng mục đối soát": ["Thu nhập tổng (24 công)", "Thu nhập tổng (26 công)", "Ngày công thực tế", "Thu nhập thực tế theo ngày công", "Bảo hiểm (10.5%)", "Thuế TNCN", "THỰC NHẬN CÒN LẠI"],
+                "Số tiền / Giá trị": [format_money(tn_24), format_money(tn_26), f"{so_cong_thuc_te} ngày", format_money(tn_thuc_te), format_money(-bh_105), format_money(-thue_tncn), f"⭐ {format_money(thuc_nhan)}"]
             }
-            st.table(pd.DataFrame(ket_qua))
+            st.table(pd.DataFrame(res))
             st.balloons()
-
-# Sidebar
-st.sidebar.markdown("---")
-st.sidebar.write("Hệ thống lương Công ty STK")
-if st.sidebar.button("Đăng xuất"):
-    del st.session_state["authenticated"]
-    st.rerun()
