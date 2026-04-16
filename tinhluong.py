@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
 
-# 1. CẤU HÌNH GIAO DIỆN DI ĐỘNG
-st.set_page_config(page_title="Hệ thống Lương STK", layout="wide")
+# 1. CẤU HÌNH HỆ THỐNG
+st.set_page_config(page_title="Quản Lý Lương STK", layout="wide")
 
-# Hàm định dạng số có dấu phẩy phân cách hàng nghìn
-def format_with_commas(val):
+def format_money(val):
     if isinstance(val, (int, float)):
         return f"{val:,.0f}"
     return val
@@ -13,70 +12,83 @@ def format_with_commas(val):
 # 2. KIỂM TRA ĐĂNG NHẬP
 if "authenticated" not in st.session_state:
     st.title("🔐 Đăng nhập Quản trị viên")
-    user = st.text_input("Tài khoản (Username)")
-    pw = st.text_input("Mật khẩu (Password)", type="password")
+    user = st.text_input("Tài khoản")
+    pw = st.text_input("Mật khẩu", type="password")
     if st.button("Đăng nhập"):
         if user == "admin" and pw == "123":
             st.session_state["authenticated"] = True
             st.rerun()
-        else:
-            st.error("Sai tài khoản hoặc mật khẩu!")
+        else: st.error("Sai thông tin!")
 else:
-    # 3. GIAO DIỆN CHÍNH SAU KHI ĐĂNG NHẬP
-    st.title("📊 Phiếu Lương Công Ty STK")
-    
-    # Nút tải file Excel
-    uploaded_file = st.file_uploader("Tải lên file Excel lương (định dạng .xlsx)", type=["xlsx"])
+    st.title("📊 Hệ Thống Quản Lý Lương STK")
+    tab1, tab2 = st.tabs(["📄 Xem File Excel Có Sẵn", "📝 Tính Lương Mới (Luật LĐ)"])
 
-    if uploaded_file:
-        # Đọc danh sách tất cả các Sheets/Tables trong file
-        excel_data = pd.ExcelFile(uploaded_file)
-        sheet_names = excel_data.sheet_names
-        
-        st.sidebar.success(f"Tìm thấy {len(sheet_names)} bảng dữ liệu")
-        selected_sheet = st.sidebar.selectbox("Chọn Table cần xem:", sheet_names)
+    # --- TAB 1: ĐỌC FILE EXCEL ---
+    with tab1:
+        uploaded_file = st.file_uploader("Tải file Excel (.xlsx)", type=["xlsx"], key="tab1_upload")
+        if uploaded_file:
+            excel_data = pd.ExcelFile(uploaded_file)
+            selected_sheet = st.selectbox("Chọn Table:", excel_data.sheet_names)
+            df = pd.read_excel(uploaded_file, sheet_name=selected_sheet).fillna("")
+            df_fmt = df.copy()
+            for col in df_fmt.columns:
+                df_fmt[col] = df_fmt[col].apply(format_money)
+            st.dataframe(df_fmt, use_container_width=True)
 
-        # Đọc dữ liệu từ Sheet đã chọn
-        df = pd.read_excel(uploaded_file, sheet_name=selected_sheet)
+    # --- TAB 2: TÍNH LƯƠNG THEO LUẬT LAO ĐỘNG ---
+    with tab2:
+        st.header("🧮 Công cụ tính lương & Thuế TNCN")
+        with st.form("calc_form"):
+            c1, c2 = st.columns(2)
+            with c1:
+                ten = st.text_input("Họ và Tên NV")
+                l_chinh = st.number_input("Lương chính (Lương đóng BH)", min_value=0, step=100000)
+                pc_an = st.number_input("Phụ cấp ăn trưa (Miễn thuế < 730k)", min_value=0, value=730000)
+                pc_khac = st.number_input("Phụ cấp khác (Điện thoại, xăng xe...)", min_value=0)
+            with c2:
+                thuong = st.number_input("Thưởng / Thu nhập khác", min_value=0)
+                nguoi_phu_thuoc = st.number_input("Số người phụ thuộc", min_value=0, step=1)
+                gio_tang_ca = st.number_input("Tiền tăng ca (Miễn thuế phần chênh lệch)", min_value=0)
 
-        # LÀM SẠCH DỮ LIỆU: Xóa dòng trống và thay None bằng khoảng trắng
-        df = df.dropna(how='all')
-        df = df.fillna("")
-
-        # ĐỊNH DẠNG DẤU PHẨY CHO SỐ TIỀN
-        # Quét qua từng ô, nếu là số thì định dạng dấu phẩy
-        df_formatted = df.copy()
-        for col in df_formatted.columns:
-            df_formatted[col] = df_formatted[col].apply(format_with_commas)
-
-        # HIỂN THỊ BẢNG LƯƠNG TỔNG QUÁT
-        st.subheader(f"📋 Dữ liệu: {selected_sheet}")
-        st.dataframe(df_formatted, use_container_width=True)
-
-        # TÍNH NĂNG XEM CHI TIẾT (PHIẾU LƯƠNG CÁ NHÂN)
-        st.markdown("---")
-        st.subheader("🔍 Xem chi tiết phiếu lương")
-        
-        # Tìm cột Họ Tên (Giả sử nằm ở cột thứ 2)
-        # Nếu file của bạn có tên cột cụ thể là 'Họ & Tên', hãy thay vào đây
-        list_nv = df.iloc[:, 1].unique() if len(df.columns) > 1 else []
-        
-        if len(list_nv) > 0:
-            ten_selected = st.selectbox("Chọn nhân viên để xem phiếu riêng:", list_nv)
-            
-            if ten_selected:
-                # Lọc dữ liệu nhân viên đó và xoay dọc bảng (Transpose) để dễ nhìn trên điện thoại
-                person_data = df[df.iloc[:, 1] == ten_selected].T
-                person_data.columns = ["Thông tin chi tiết"]
+            if st.form_submit_button("Tính Lương & Kết Xuất Phiếu"):
+                # --- LOGIC TÍNH TOÁN THEO LUẬT ---
+                # 1. Bảo hiểm (8% Hưu trí, 1.5% BHYT, 1% BHTN = 10.5%)
+                bh_dv = l_chinh * 0.105 
                 
-                # Định dạng dấu phẩy cho bảng chi tiết này
-                person_data["Thông tin chi tiết"] = person_data["Thông tin chi tiết"].apply(format_with_commas)
+                # 2. Thu nhập chịu thuế (TNCT)
+                # TNCT = Tổng thu nhập - Ăn trưa miễn thuế - Tăng ca miễn thuế
+                tong_tn = l_chinh + pc_an + pc_khac + thuong + gio_tang_ca
+                tn_chịu_thue = tong_tn - min(pc_an, 730000) - bh_dv
                 
-                st.table(person_data)
+                # 3. Các khoản giảm trừ
+                giam_tru_ca_nhan = 11000000
+                giam_tru_phu_thuoc = nguoi_phu_thuoc * 4400000
+                tn_tinh_thue = max(0, tn_chịu_thue - giam_tru_ca_nhan - giam_tru_phu_thuoc)
+                
+                # 4. Tính thuế TNCN lũy tiến
+                thue = 0
+                if tn_tinh_thue <= 5000000: thue = tn_tinh_thue * 0.05
+                elif tn_tinh_thue <= 10000000: thue = tn_tinh_thue * 0.1 - 250000
+                elif tn_tinh_thue <= 18000000: thue = tn_tinh_thue * 0.15 - 750000
+                elif tn_tinh_thue <= 32000000: thue = tn_tinh_thue * 0.2 - 1650000
+                else: thue = tn_tinh_thue * 0.25 - 3250000 # Rút gọn các bậc cao
+                
+                thuc_nhan = tong_tn - bh_dv - thue
+                
+                # --- HIỂN THỊ KẾT QUẢ ---
+                st.divider()
+                st.subheader(f"📑 Phiếu Lương: {ten}")
+                res_df = pd.DataFrame({
+                    "Hạng mục": ["Tổng thu nhập", "Bảo hiểm trừ lương (10.5%)", "Giảm trừ gia cảnh (Bản thân)", "Giảm trừ người phụ thuộc", "Thuế TNCN phải nộp", "THỰC NHẬN (Lương Net)"],
+                    "Số tiền (VNĐ)": [tong_tn, bh_dv, giam_tru_ca_nhan, giam_tru_phu_thuoc, thue, thuc_nhan]
+                })
+                res_df["Số tiền (VNĐ)"] = res_df["Số tiền (VNĐ)"].apply(format_money)
+                st.table(res_df)
+                st.balloons()
 
 # 4. THANH BÊN (SIDEBAR)
 st.sidebar.markdown("---")
 if st.sidebar.button("Đăng xuất"):
     del st.session_state["authenticated"]
     st.rerun()
-st.sidebar.info("Hệ thống quản lý nội bộ STK v1.2")
+st.sidebar.info("Luật áp dụng: Giảm trừ gia cảnh 11tr/tháng, BH 10.5%")
