@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # 1. CẤU HÌNH GIAO DIỆN
-st.set_page_config(page_title="Phần Mềm Lương STK - Full Version", layout="wide")
+st.set_page_config(page_title="Hệ thống Lương STK 2026", layout="wide")
 
 def fmt(val):
     if isinstance(val, (int, float)):
@@ -11,123 +11,118 @@ def fmt(val):
 
 # 2. KIỂM TRA ĐĂNG NHẬP
 if "authenticated" not in st.session_state:
-    st.title("🔐 Hệ Thống Quản Lý Lương STK")
+    st.title("🔐 Cổng Thông Tin Lương Nhân Viên STK")
     user = st.text_input("Tài khoản", value="admin")
     pw = st.text_input("Mật khẩu", type="password", value="123")
-    if st.button("Đăng nhập"):
+    if st.button("Đăng nhập hệ thống"):
         if user == "admin" and pw == "123":
             st.session_state["authenticated"] = True
             st.rerun()
         else: st.error("Sai thông tin!")
 else:
-    st.title("📊 Bảng Tính Lương Chi Tiết STK (Luật 2026)")
-    st.info("💡 Mẹo: Nhập số tiền viết tắt (x1000). Ví dụ: 6654 = 6,654,000đ")
+    st.title("📊 Bảng Tính Lương & Giải Thích Luật 2026")
+    st.info("💡 **Hướng dẫn:** Nhấp vào biểu tượng (i) cạnh mỗi mục để xem giải thích luật.")
 
-    with st.form("stk_full_form"):
-        # --- PHẦN 1: THÔNG TIN CƠ BẢN ---
-        st.subheader("📌 1. Thông tin nhân viên")
-        c1, c2, c3, c4 = st.columns(4)
-        with c1: ma_nv = st.text_input("Mã số nhân viên", value="THA32")
-        with c2: phong_ban = st.text_input("Phòng ban làm việc", value="Sản Xuất")
-        with c3: ho_ten = st.text_input("Họ & Tên", value="CAO NGỌC THẮNG")
-        with c4: ngay_vao = st.text_input("Ngày bắt đầu làm việc", value="14/03/2025")
+    with st.form("full_stk_form_v3"):
+        # --- NHÓM 1: THÔNG TIN CĂN CỨ ---
+        st.subheader("📌 1. Thông tin căn cứ tính lương")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            ho_ten = st.text_input("Họ & Tên", value="CAO NGỌC THẮNG")
+            l_tinh_tc = st.number_input("Lương tính tăng ca (x1000)", value=8780, help="Là số tiền dùng để chia ra tiền lương theo giờ. Thường bằng lương cơ bản + phụ cấp cố định.")
+        with c2:
+            ngay_vao = st.text_input("Ngày vào công ty", value="14/03/2025")
+            l_dong_bh = st.number_input("Lương tham gia BHXH (x1000)", value=6500, help="Mức lương dùng làm căn cứ đóng BHXH, BHYT, BHTN theo quy định Luật Bảo hiểm 2026.")
+        with c3:
+            so_cong = st.number_input("Số ngày làm thực tế", value=24, help="Số ngày bạn đi làm thực tế trong tháng để tính lương thời gian.")
+            tn_chuan = st.number_input("Thu nhập chuẩn/tháng (x1000)", value=12000)
 
-        # --- PHẦN 2: THU NHẬP CHUẨN & PHỤ CẤP ---
-        st.subheader("💰 2. Thu nhập chuẩn & Các khoản phụ cấp (Nhập x1000)")
-        c5, c6, c7 = st.columns(3)
-        with c5:
-            tn_chuan = st.number_input("THU NHẬP CHUẨN / Tháng (24 công)", value=12666) * 1000
-            luong_bh = st.number_input("Lương tham gia BH (Bậc + PC)", value=6500) * 1000
-            luong_bac = st.number_input("Lương theo bậc", value=6654) * 1000
-            pc_tn = st.number_input("Phụ cấp trách nhiệm quản lý", value=563) * 1000
-        with c6:
-            thuong_ns = st.number_input("Thưởng kiểm soát năng suất SP", value=3302) * 1000
-            pc_doc_hai = st.number_input("Phụ cấp độc hại, nặng nhọc...", value=500) * 1000
-            pc_di_lai = st.number_input("Phụ cấp đi lại (xăng xe)", value=500) * 1000
-            pc_dt = st.number_input("Phụ cấp điện thoại", value=0) * 1000
-        with c7:
-            chuyen_can = st.number_input("Thưởng chuyên cần", value=500) * 1000
-            pc_com = st.number_input("Phụ cấp cơm giữa ca", value=720) * 1000
-            tn_ngoai_gio_thue = st.number_input("TN ngoài giờ CHỊU THUẾ", value=0) * 1000
-            so_ngay_lam = st.number_input("Số ngày làm việc thực tế", value=24)
+        st.divider()
 
-        # --- PHẦN 3: TĂNG CA & THỜI GIAN ---
-        st.subheader("🕒 3. Chi tiết giờ làm thêm & Thưởng năm")
-        c8, c9, c10 = st.columns(3)
-        l_gio = luong_bac / 208 # Tính đơn giá 1 giờ dựa trên 26 công
-        with c8:
-            g_ngay = st.number_input("Số giờ làm thêm (Ban ngày - 150%)", value=0.0, step=0.5)
-            g_dem = st.number_input("Số giờ làm thêm (Ban đêm - 210%)", value=0.0, step=0.5)
-            g_cn = st.number_input("Số giờ làm thêm (Chủ nhật - 200%)", value=0.0, step=0.5)
-        with c9:
-            g_le = st.number_input("Số giờ làm thêm (Lễ - 300%)", value=0.0, step=0.5)
-            tre_ngay = st.number_input("Số giờ đi trễ/về sớm - NGÀY", value=0.0, step=0.1)
-            tre_dem = st.number_input("Số giờ đi trễ/về sớm - ĐÊM", value=0.0, step=0.1)
-        with c10:
-            phep_nam = st.number_input("Phép năm chưa sử dụng (x1000)", value=0) * 1000
-            thuong_13 = st.number_input("THƯỞNG THÁNG 13 (x1000)", value=0) * 1000
-            tn_ngoai_gio_ko_thue = st.number_input("TN ngoài giờ MIỄN THUẾ", value=840) * 1000
+        # --- NHÓM 2: THU NHẬP CHI TIẾT ---
+        st.subheader("💰 2. Các khoản thu nhập & Phụ cấp")
+        col1, col2 = st.columns(2)
+        with col1:
+            l_bac = st.number_input("Lương theo bậc (x1000)", value=6654, help="Lương chính theo thang bảng lương của doanh nghiệp.")
+            pc_tn = st.number_input("PC trách nhiệm (x1000)", value=569, help="Phụ cấp dành cho vị trí quản lý hoặc đặc thù công việc.")
+            thuong_ns = st.number_input("Thưởng năng suất (x1000)", value=3902, help="Thưởng dựa trên kết quả kiểm soát năng suất sản phẩm.")
+            pc_doc_hai = st.number_input("PC độc hại/Nuôi con (x1000)", value=500, help="Khoản bù đắp môi trường làm việc hoặc hỗ trợ đời sống.")
+        with col2:
+            pc_an = st.number_input("PC cơm giữa ca (x1000)", value=720, help="Khoản tiền cơm được miễn thuế TNCN tối đa 730k/tháng.")
+            pc_xang = st.number_input("PC xăng xe/Đi lại (x1000)", value=500, help="Hỗ trợ chi phí di chuyển từ nhà đến nơi làm việc.")
+            chuyen_can = st.number_input("Thưởng chuyên cần (x1000)", value=500, help="Thưởng nếu không vi phạm nội quy đi trễ, về sớm.")
+            ngoai_gio_mien = st.number_input("Ngoài giờ MIỄN THUẾ (x1000)", value=840, help="Phần tiền làm thêm giờ vượt mức 100% lương chính sẽ được miễn thuế TNCN.")
 
-        # --- PHẦN 4: ĐIỀU CHỈNH & QUYẾT TOÁN ---
-        st.subheader("🔄 4. Điều chỉnh lương & Khoản trừ khác (x1000)")
-        c11, c12 = st.columns(2)
-        with c11:
-            chi_hoan = st.number_input("CHI HOÀN TIỀN... (nếu có)", value=0) * 1000
-            tam_thu = st.number_input("TẠM THU TIỀN... (nếu có)", value=0) * 1000
-            hoan_tra = st.number_input("Hoàn trả tiền lương (nếu có)", value=0) * 1000
-        with c12:
-            phi_cd = st.number_input("Phí Công đoàn (thường 1%)", value=40) * 1000
-            truy_thu_bh = st.number_input("Truy thu BHYT 4.5%", value=0) * 1000
-            qt_thue_hoan = st.number_input("QUYẾT TOÁN Thuế (+) Được hoàn", value=0) * 1000
-            qt_thue_dong = st.number_input("QUYẾT TOÁN Thuế (-) Đóng thêm", value=0) * 1000
+        st.divider()
 
-        submit = st.form_submit_button("TÍNH TOÁN VÀ XUẤT PHIẾU THỰC NHẬN")
+        # --- NHÓM 3: TĂNG CA & LÀM ĐÊM ---
+        st.subheader("🌙 3. Chế độ làm đêm & Tăng ca")
+        st.warning("⚠️ Theo Luật: Làm ca đêm được cộng thêm ít nhất 30% lương (Hệ số x1.3)")
+        g1, g2, g3 = st.columns(3)
+        l_gio = (l_tinh_tc * 1000) / 208 # 208 giờ = 26 công x 8h
+        with g1:
+            h_tc_ngay = st.number_input("Giờ tăng ca NGÀY (h)", value=11.0, help="Tính 150% lương giờ bình thường.")
+        with g2:
+            h_ca_dem = st.number_input("Giờ CA ĐÊM chính (h)", value=0.0, help="Làm việc từ 22h - 6h sáng. Phụ cấp ít nhất 30% (Hệ số x1.3).")
+        with g3:
+            h_tc_dem = st.number_input("Giờ TĂNG CA ĐÊM (h)", value=0.0, help="Tăng ca vào khung giờ đêm. Hệ số tính là 210% (150% + 30% + 20% x 150%).")
+
+        st.divider()
+
+        # --- NHÓM 4: KHẤU TRỪ & THUẾ ---
+        st.subheader("📉 4. Các khoản trích trừ & Thuế")
+        k1, k2, k3 = st.columns(3)
+        with k1:
+            phi_cd = st.number_input("Phí công đoàn (x1000)", value=40, help="Trích 1% tiền lương cơ bản để duy trì hoạt động công đoàn.")
+            nguoi_pt = st.number_input("Số người phụ thuộc", value=0, help="Mỗi người phụ thuộc được giảm trừ 4.4 triệu đồng/tháng khi tính thuế TNCN.")
+        with k2:
+            truy_thu = st.number_input("Truy thu BHYT 4.5% (x1000)", value=286, help="Khấu trừ bù cho các kỳ thiếu hụt bảo hiểm y tế.")
+            qt_thue_hoan = st.number_input("Quyết toán Thuế (+) Hoàn (x1000)", value=656, help="Tiền thuế nộp thừa trong năm được Nhà nước trả lại.")
+        with k3:
+            st.write("**Thuế TNCN (Luật 2026):**")
+            st.caption("Giảm trừ gia cảnh bản thân: 11 triệu đồng/tháng.")
+            st.caption("Mức thuế lũy tiến bắt đầu từ 5% sau khi trừ gia cảnh.")
+
+        submit = st.form_submit_button("TÍNH LƯƠNG THỰC NHẬN")
 
         if submit:
-            # --- TÍNH TOÁN TIỀN TĂNG CA ---
-            tien_tc = (g_ngay * l_gio * 1.5) + (g_dem * l_gio * 2.1) + (g_cn * l_gio * 2.0) + (g_le * l_gio * 3.0)
-            tien_phat_tre = (tre_ngay * l_gio) + (tre_dem * l_gio * 1.3)
+            # --- LOGIC TÍNH TOÁN ---
+            tien_tc_ngay = h_tc_ngay * l_gio * 1.5
+            tien_ca_dem = h_ca_dem * l_gio * 0.3 # Chỉ tính phần phụ cộng thêm 30%
+            tien_tc_dem = h_tc_dem * l_gio * 2.1
+            tong_tc = tien_tc_ngay + tien_ca_dem + tien_tc_dem
             
-            # --- TỔNG LƯƠNG & TỔNG THU NHẬP ---
-            tong_luong = luong_bac + pc_tn + thuong_ns + pc_doc_hai + pc_di_lai + pc_dt + chuyen_can + pc_com + tn_ngoai_gio_thue
-            tong_tn_thang = tong_luong + phep_nam + thuong_13 + tn_ngoai_gio_ko_thue + tien_tc - tien_phat_tre
+            thu_nhap_thang = (l_bac + pc_tn + thuong_ns + pc_doc_hai + pc_xang + pc_an + chuyen_can + ngoai_gio_mien) * 1000 + tong_tc
             
-            # --- KHẤU TRỪ ---
-            bh_105 = luong_bh * 0.105
-            giam_tru_bh = 11000000 # Giảm trừ cá nhân luật 2026
-            tn_tinh_thue = max(0, tong_tn_thang - bh_105 - pc_com - tn_ngoai_gio_ko_thue - giam_tru_bh)
+            # Bảo hiểm 10.5% (Luật 2026)
+            bh_105 = (l_dong_bh * 1000) * 0.105
+            
+            # Thuế TNCN
+            tn_chiu_thue = thu_nhap_thang - (pc_an * 1000) - ngoai_gio_mien * 1000
+            giam_tru = 11000000 + (nguoi_pt * 4400000)
+            tn_tinh_thue = max(0, tn_chiu_thue - bh_105 - giam_tru)
             
             def tinh_thue(tntt):
                 if tntt <= 5000000: return tntt * 0.05
                 elif tntt <= 10000000: return tntt * 0.1 - 250000
                 else: return tntt * 0.15 - 750000
             thue_tncn = tinh_thue(tn_tinh_thue)
-
-            # --- TỔNG THỰC NHẬN ---
-            thuc_nhan = tong_tn_thang - bh_105 - phi_cd - thue_tncn + chi_hoan - tam_thu + hoan_tra - truy_thu_bh + qt_thue_hoan - qt_thue_dong
-            cty_dong = luong_bh * 0.235 # 23.5% Công ty đóng
-
-            # --- HIỂN THỊ KẾT QUẢ ---
-            st.success(f"### 🏆 TỔNG TIỀN THỰC NHẬN CÒN LẠI: {fmt(thuc_nhan)} VNĐ")
             
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.write("**📊 Tóm tắt thu nhập:**")
-                st.write(f"- Tổng lương: {fmt(tong_luong)} đ")
-                st.write(f"- Tiền tăng ca: {fmt(tien_tc)} đ")
-                st.write(f"- Phụ cấp & Thưởng khác: {fmt(phep_nam + thuong_13)} đ")
-            with col_b:
-                st.write("**📉 Tóm tắt khấu trừ:**")
-                st.write(f"- Bảo hiểm (10.5%): -{fmt(bh_105)} đ")
-                st.write(f"- Thuế TNCN: -{fmt(thue_tncn)} đ")
-                st.write(f"- Phí công đoàn: -{fmt(phi_cd)} đ")
+            thuc_nhan = thu_nhap_thang - bh_105 - (phi_cd * 1000) - thue_tncn - (truy_thu * 1000) + (qt_thue_hoan * 1000)
 
-            st.info(f"🏢 Công ty đóng thêm bảo hiểm cho bạn (23.5%): {fmt(cty_dong)} VNĐ")
-            st.balloons()
+            # --- KẾT QUẢ ---
+            st.success(f"### 🏆 TỔNG TIỀN THỰC NHẬN: {fmt(thuc_nhan)} VNĐ")
+            
+            with st.expander("👉 Xem chi tiết phiếu lương (Dành cho công nhân)"):
+                data = {
+                    "Mục": ["Tổng thu nhập", "Tiền tăng ca/ca đêm", "Trích đóng BH (10.5%)", "Phí công đoàn", "Thuế TNCN nộp", "Truy thu/Hoàn thuế", "THỰC NHẬN"],
+                    "Số tiền": [fmt(thu_nhap_thang - tong_tc), fmt(tong_tc), fmt(-bh_105), fmt(-phi_cd*1000), fmt(-thue_tncn), fmt((qt_thue_hoan - truy_thu)*1000), f"⭐ {fmt(thuc_nhan)}"]
+                }
+                st.table(pd.DataFrame(data))
 
 # Sidebar
 st.sidebar.markdown("---")
-st.sidebar.write("Hệ thống STK v2.0 - Full Structure")
+st.sidebar.info("Hệ thống STK v2.1 - Giải nghĩa Luật 2026")
 if st.sidebar.button("Đăng xuất"):
     del st.session_state["authenticated"]
     st.rerun()
