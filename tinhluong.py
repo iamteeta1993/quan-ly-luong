@@ -1,63 +1,52 @@
 import streamlit as st
 import pandas as pd
 
-# Cấu hình trang cho di động
-st.set_page_config(page_title="Quản Lý Lương", layout="centered")
+# Cấu hình giao diện di động
+st.set_page_config(page_title="Quản Lý Lương STK", layout="centered")
 
-# --- ĐĂNG NHẬP ---
 if "authenticated" not in st.session_state:
-    st.title("🔐 Đăng nhập hệ thống")
+    st.title("🔐 Đăng nhập Admin")
     user = st.text_input("Tài khoản")
     pw = st.text_input("Mật khẩu", type="password")
     if st.button("Đăng nhập"):
         if user == "admin" and pw == "123":
             st.session_state["authenticated"] = True
             st.rerun()
-        else:
-            st.error("Sai tài khoản hoặc mật khẩu!")
+        else: st.error("Sai thông tin!")
 else:
-    st.title("📊 Quản Lý Bảng Lương")
+    st.title("📊 Phiếu Lương Công Ty STK")
     
-    # Tạo menu 2 tab
-    tab1, tab2 = st.tabs(["📁 Tải Excel lên", "📋 Xem Bảng Lương"])
+    uploaded_file = st.file_uploader("Chọn file Excel lương", type=["xlsx"])
 
-    with tab1:
-        st.subheader("Bước 1: Đưa dữ liệu từ Excel vào App")
-        uploaded_file = st.file_uploader("Chọn file Excel của bạn", type=["xlsx", "xls", "csv"])
+    if uploaded_file:
+        # Đọc toàn bộ các Sheet (Table) trong file
+        excel_data = pd.ExcelFile(uploaded_file)
+        sheet_names = excel_data.sheet_names # Lấy danh sách Table 1, Table 2...
         
-        if uploaded_file is not None:
-            # Đọc dữ liệu từ file bạn tải lên
-            try:
-                df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith(('.xlsx', '.xls')) else pd.read_csv(uploaded_file)
-                st.session_state["data_luong"] = df
-                st.success("✅ Đã tải dữ liệu thành công!")
-                st.write("Xem trước 5 dòng đầu tiên:")
-                st.dataframe(df.head())
-            except Exception as e:
-                st.error(f"Lỗi đọc file: {e}")
+        st.success(f"✅ Đã tìm thấy {len(sheet_names)} bảng dữ liệu.")
 
-    with tab2:
-        st.subheader("Bước 2: Kiểm tra dữ liệu trên App")
-        if "data_luong" in st.session_state:
-            df_display = st.session_state["data_luong"]
-            
-            # Tính tổng số tiền thực nhận để kiểm tra app có tính đúng không
-            if 'Thực nhận' in df_display.columns:
-                tong_chi = df_display['Thực nhận'].sum()
-                st.metric("Tổng quỹ lương thực nhận", f"{tong_chi:,.0f} VNĐ")
-            
-            # Hiển thị bảng lương đầy đủ
-            st.dataframe(df_display, use_container_width=True)
-            
-            # Nút xóa để thử lại
-            if st.button("Xóa dữ liệu để tải lại file khác"):
-                del st.session_state["data_luong"]
-                st.rerun()
-        else:
-            st.info("Chưa có dữ liệu. Vui lòng sang Tab 'Tải Excel lên' để thử.")
+        # Cho phép chọn Table muốn xem (Phù hợp giao diện điện thoại)
+        selected_sheet = st.selectbox("Chọn bảng cần xem (Table):", sheet_names)
 
-# --- SIDEBAR ---
-st.sidebar.write("Hệ thống v1.1 - Hoạt động tốt trên Mobile")
+        # Đọc dữ liệu của Sheet được chọn
+        # skiprows=2 để bỏ qua dòng tiêu đề "Công ty..." và "Phiếu lương..." nếu bạn muốn bảng sạch hơn
+        df = pd.read_excel(uploaded_file, sheet_name=selected_sheet)
+
+        st.subheader(f"📋 Dữ liệu: {selected_sheet}")
+        
+        # Hiển thị bảng lương
+        st.dataframe(df, use_container_width=True)
+
+        # Tính năng tìm kiếm nhanh theo tên NV trên điện thoại
+        search_name = st.text_input("🔍 Tìm tên nhân viên nhanh:")
+        if search_name:
+            # Giả sử cột họ tên là cột đầu tiên hoặc cột 'A'
+            filtered_df = df[df.astype(str).apply(lambda x: x.str.contains(search_name, case=False)).any(axis=1)]
+            st.write("Kết quả tìm kiếm:")
+            st.dataframe(filtered_df)
+
+st.sidebar.markdown("---")
+st.sidebar.write("CÔNG TY TNHH STK")
 if st.sidebar.button("Đăng xuất"):
     del st.session_state["authenticated"]
     st.rerun()
