@@ -33,12 +33,12 @@ else:
         tn_chuan = st.number_input("TN CHUẨN (x1000)", value=12000)
     with c3: 
         ngay_vao = st.text_input("Ngày vào làm", value="14/03/2025")
-        l_dong_bh = st.number_input("Lương đóng BH (x1000)", value=6500, help="Dùng tính BHXH 10.5%")
+        l_dong_bh = st.number_input("Lương đóng BH (x1000)", value=6500)
     with c4: 
         phong_ban = st.text_input("Phòng ban", value="Sản Xuất")
-        l_tinh_tc = st.number_input("Lương tính TC (x1000)", value=8780, help="Dùng chia lương giờ")
+        l_tinh_tc = st.number_input("Lương tính TC (x1000)", value=8780)
 
-    # --- PHẦN 2: CÁC KHOẢN THU NHẬP (DỰA THEO 43 MỤC) ---
+    # --- PHẦN 2: CÁC KHOẢN THU NHẬP ---
     st.subheader("💰 2. Các khoản Thu nhập (x1000)")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -57,8 +57,8 @@ else:
         phep_nam = st.number_input("Tiền phép năm", value=0)
         thuong_13 = st.number_input("Thưởng tháng 13", value=0)
 
-    # --- PHẦN 3: TĂNG CA & TRUY THU (CÔNG THỨC LUẬT) ---
-    st.subheader("🕒 3. Tăng ca & Các khoản khấu trừ (x1000)")
+    # --- PHẦN 3: TĂNG CA & KHẤU TRỪ ---
+    st.subheader("🕒 3. Tăng ca & Khấu trừ (x1000)")
     ct1, ct2, ct3 = st.columns(3)
     l_gio = (l_tinh_tc * 1000) / 208
     with ct1:
@@ -74,16 +74,11 @@ else:
         qt_thue_dong = st.number_input("Quyết toán Thuế (-)", value=0)
         nguoi_pt = st.number_input("Số người phụ thuộc", value=0, step=1)
 
-    # --- LOGIC TÍNH TOÁN TỰ ĐỘNG ---
+    # --- LOGIC TÍNH TOÁN ---
     tien_tc = (g_ngay * l_gio * 1.5) + (g_dem * l_gio * 2.1) + (g_cn * l_gio * 2.0)
-    
-    # 1. TỔNG LƯƠNG
     tong_luong = (l_bac + pc_tn + thuong_ns + pc_doc_hai + pc_xang + pc_dt + chuyen_can + pc_com + tn_ngoai_gio_thue) * 1000
-    
-    # 2. TỔNG THU NHẬP THÁNG
     tong_tn_thang = tong_luong + (tn_ngoai_gio_mien * 1000) + (phep_nam * 1000) + (thuong_13 * 1000) + tien_tc
     
-    # 3. BẢO HIỂM & THUẾ
     bh_105 = (l_dong_bh * 1000) * 0.105
     tn_chiu_thue = tong_tn_thang - (pc_com * 1000) - (tn_ngoai_gio_mien * 1000)
     giam_tru = 11000000 + (nguoi_pt * 4400000)
@@ -95,17 +90,16 @@ else:
         else: return tntt * 0.15 - 750000
     thue_tncn = tinh_thue(tn_tinh_thue)
 
-    # 4. TỔNG THỰC NHẬN
     thuc_nhan = tong_tn_thang - bh_105 - (phi_cd * 1000) - thue_tncn - (truy_thu_bh * 1000) - (tam_thu * 1000) + (qt_thue_hoan * 1000) - (qt_thue_dong * 1000)
 
-    # --- HIỂN THỊ KẾT QUẢ CUỐI CÙNG (NHẢY SỐ TỰ ĐỘNG) ---
+    # --- HIỂN THỊ KẾT QUẢ ---
     st.divider()
     st.markdown(f"### 🏆 TỔNG TIỀN THỰC NHẬN: <span style='color:red'>{fmt(thuc_nhan)} VNĐ</span>", unsafe_allow_html=True)
     
     with st.expander("🔍 Chi tiết các mục tổng (Đối soát công ty)"):
         data = {
-            "Danh mục đối soát": ["TỔNG LƯƠNG", "TỔNG THU NHẬP THÁNG", "Khấu trừ Bảo hiểm (10.5%)", "Khấu trừ Thuế TNCN", "Khấu trừ Công đoàn", "Truy thu / Quyết toán", "THỰC NHẬN CUỐI CÙNG"],
-            "Số tiền": [fmt(tong_luong), fmt(tong_tn_thap), fmt(-bh_105), fmt(-thue_tncn), fmt(-phi_cd*1000), fmt((qt_thue_hoan - truy_thu_bh - tam_thu - qt_thue_dong)*1000), f"⭐ {fmt(thuc_nhan)}"]
+            "Danh mục đối soát": ["TỔNG LƯƠNG", "TỔNG THU NHẬP THÁNG", "Bảo hiểm (10.5%)", "Thuế TNCN", "Công đoàn", "Truy thu/Quyết toán", "THỰC NHẬN"],
+            "Số tiền": [fmt(tong_luong), fmt(tong_tn_thang), fmt(-bh_105), fmt(-thue_tncn), fmt(-phi_cd*1000), fmt((qt_thue_hoan - truy_thu_bh - tam_thu - qt_thue_dong)*1000), f"⭐ {fmt(thuc_nhan)}"]
         }
         st.table(pd.DataFrame(data))
 
